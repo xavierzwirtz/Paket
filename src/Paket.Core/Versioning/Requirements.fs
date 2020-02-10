@@ -947,59 +947,65 @@ type InstallSettings =
           GenerateLoadScripts = None
           Simplify = None }
 
-    member this.ToString(groupSettings:InstallSettings,asLines) =
+    member this.ToList(groupSettings:InstallSettings) =
         let options =
             [ match this.CopyLocal with
-              | Some x when groupSettings.CopyLocal <> this.CopyLocal -> yield "copy_local: " + x.ToString().ToLower()
+              | Some x when groupSettings.CopyLocal <> this.CopyLocal -> yield "copy_local", x.ToString().ToLower()
               | _ -> ()
               match this.SpecificVersion with
-              | Some x when groupSettings.SpecificVersion <> this.SpecificVersion -> yield "specific_version: " + x.ToString().ToLower()
+              | Some x when groupSettings.SpecificVersion <> this.SpecificVersion -> yield "specific_version", x.ToString().ToLower()
               | _ -> ()
               match this.StorageConfig with
-              | Some (PackagesFolderGroupConfig.NoPackagesFolder) when groupSettings.StorageConfig <> this.StorageConfig -> yield "storage: none"
-              | Some (PackagesFolderGroupConfig.SymbolicLink) when groupSettings.StorageConfig <> this.StorageConfig -> yield "storage: symlink"
+              | Some (PackagesFolderGroupConfig.NoPackagesFolder) when groupSettings.StorageConfig <> this.StorageConfig -> yield "storage", "none"
+              | Some (PackagesFolderGroupConfig.SymbolicLink) when groupSettings.StorageConfig <> this.StorageConfig -> yield "storage", "symlink"
               | Some (PackagesFolderGroupConfig.GivenPackagesFolder s) when groupSettings.StorageConfig <> this.StorageConfig -> failwithf "Not implemented yet."
-              | Some (PackagesFolderGroupConfig.DefaultPackagesFolder) when groupSettings.StorageConfig <> this.StorageConfig -> yield "storage: packages"
+              | Some (PackagesFolderGroupConfig.DefaultPackagesFolder) when groupSettings.StorageConfig <> this.StorageConfig -> yield "storage", "packages"
               | _ -> ()
               match this.CopyContentToOutputDirectory with
-              | Some CopyToOutputDirectorySettings.Never when groupSettings.CopyContentToOutputDirectory <> this.CopyContentToOutputDirectory -> yield "copy_content_to_output_dir: never"
-              | Some CopyToOutputDirectorySettings.Always when groupSettings.CopyContentToOutputDirectory <> this.CopyContentToOutputDirectory -> yield "copy_content_to_output_dir: always"
-              | Some CopyToOutputDirectorySettings.PreserveNewest when groupSettings.CopyContentToOutputDirectory <> this.CopyContentToOutputDirectory -> yield "copy_content_to_output_dir: preserve_newest"
+              | Some CopyToOutputDirectorySettings.Never when groupSettings.CopyContentToOutputDirectory <> this.CopyContentToOutputDirectory -> yield "copy_content_to_output_dir", "never"
+              | Some CopyToOutputDirectorySettings.Always when groupSettings.CopyContentToOutputDirectory <> this.CopyContentToOutputDirectory -> yield "copy_content_to_output_dir", "always"
+              | Some CopyToOutputDirectorySettings.PreserveNewest when groupSettings.CopyContentToOutputDirectory <> this.CopyContentToOutputDirectory -> yield "copy_content_to_output_dir", "preserve_newest"
               | _ -> ()
               match this.ImportTargets with
-              | Some x when groupSettings.ImportTargets <> this.ImportTargets -> yield "import_targets: " + x.ToString().ToLower()
+              | Some x when groupSettings.ImportTargets <> this.ImportTargets -> yield "import_targets", x.ToString().ToLower()
               | _ -> ()
               match this.OmitContent with
-              | Some ContentCopySettings.Omit when groupSettings.OmitContent <> this.OmitContent -> yield "content: none"
-              | Some ContentCopySettings.Overwrite when groupSettings.OmitContent <> this.OmitContent -> yield "content: true"
-              | Some ContentCopySettings.OmitIfExisting when groupSettings.OmitContent <> this.OmitContent -> yield "content: once"
+              | Some ContentCopySettings.Omit when groupSettings.OmitContent <> this.OmitContent -> yield "content", "none"
+              | Some ContentCopySettings.Overwrite when groupSettings.OmitContent <> this.OmitContent -> yield "content", "true"
+              | Some ContentCopySettings.OmitIfExisting when groupSettings.OmitContent <> this.OmitContent -> yield "content", "once"
               | _ -> ()
               match this.IncludeVersionInPath with
-              | Some x when groupSettings.IncludeVersionInPath <> this.IncludeVersionInPath -> yield "version_in_path: " + x.ToString().ToLower()
+              | Some x when groupSettings.IncludeVersionInPath <> this.IncludeVersionInPath -> yield "version_in_path", x.ToString().ToLower()
               | _ -> ()
               match this.LicenseDownload with
-              | Some x when groupSettings.LicenseDownload <> this.LicenseDownload -> yield "license_download: " + x.ToString().ToLower()
+              | Some x when groupSettings.LicenseDownload <> this.LicenseDownload -> yield "license_download", x.ToString().ToLower()
               | _ -> ()
               match this.ReferenceCondition with
-              | Some x when groupSettings.ReferenceCondition <> this.ReferenceCondition -> yield "condition: " + x.ToUpper()
+              | Some x when groupSettings.ReferenceCondition <> this.ReferenceCondition -> yield "condition", x.ToUpper()
               | _ -> ()
               match this.CreateBindingRedirects with
-              | Some BindingRedirectsSettings.On when groupSettings.CreateBindingRedirects <> this.CreateBindingRedirects -> yield "redirects: on"
-              | Some BindingRedirectsSettings.Off when groupSettings.CreateBindingRedirects <> this.CreateBindingRedirects -> yield "redirects: off"
-              | Some BindingRedirectsSettings.Force when groupSettings.CreateBindingRedirects <> this.CreateBindingRedirects -> yield "redirects: force"
+              | Some BindingRedirectsSettings.On when groupSettings.CreateBindingRedirects <> this.CreateBindingRedirects -> yield "redirects", "on"
+              | Some BindingRedirectsSettings.Off when groupSettings.CreateBindingRedirects <> this.CreateBindingRedirects -> yield "redirects", "off"
+              | Some BindingRedirectsSettings.Force when groupSettings.CreateBindingRedirects <> this.CreateBindingRedirects -> yield "redirects", "force"
               | _ -> ()
               match this.FrameworkRestrictions with
               | ExplicitRestriction FrameworkRestriction.HasNoRestriction when groupSettings.FrameworkRestrictions <> this.FrameworkRestrictions -> ()
               | AutoDetectFramework -> ()
-              | ExplicitRestriction fr when groupSettings.FrameworkRestrictions <> this.FrameworkRestrictions -> yield "restriction: " + (fr.ToString())
+              | ExplicitRestriction fr when groupSettings.FrameworkRestrictions <> this.FrameworkRestrictions -> yield "restriction", (fr.ToString())
               | _ -> ()
               match this.GenerateLoadScripts with
-              | Some true when groupSettings.GenerateLoadScripts <> this.GenerateLoadScripts -> yield "generate_load_scripts: true"
-              | Some false when groupSettings.GenerateLoadScripts <> this.GenerateLoadScripts  -> yield "generate_load_scripts: false"
+              | Some true when groupSettings.GenerateLoadScripts <> this.GenerateLoadScripts -> yield "generate_load_scripts", "true"
+              | Some false when groupSettings.GenerateLoadScripts <> this.GenerateLoadScripts  -> yield "generate_load_scripts", "false"
               | _ -> ()
               match this.Simplify with
-              | Some false -> yield "simplify: false"
+              | Some false -> yield "simplify", "false"
               | _ -> () ]
+        options
+            
+    member this.ToString(groupSettings:InstallSettings,asLines) =
+        let options =
+            this.ToList(groupSettings)
+            |> List.map(fun (x, y) -> x + ": " + y)
 
         let separator = if asLines then Environment.NewLine else ", "
         String.Join(separator,options)

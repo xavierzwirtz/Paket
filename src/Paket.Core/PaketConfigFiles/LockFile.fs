@@ -11,6 +11,7 @@ open Paket.ModuleResolver
 open Paket.PackageSources
 open Paket.Requirements
 open Chessie.ErrorHandling
+open Newtonsoft.Json.Linq
 
 type LockFileGroup =
   { Name: GroupName
@@ -33,70 +34,74 @@ module LockFileSerializer =
         | true, x -> x
         | _ -> packageName
 
-    /// [omit]
-    let serializeOptionsAsLines options = [
-        if options.Strict then yield "REFERENCES: STRICT"
+    ///
+    let serializeOptions options = [
+        if options.Strict then yield "REFERENCES", "STRICT"
         match options.Settings.GenerateLoadScripts with
-        | Some true -> yield "GENERATE-LOAD-SCRIPTS: ON"
-        | Some false -> yield "GENERATE-LOAD-SCRIPTS: OFF"
+        | Some true -> yield "GENERATE-LOAD-SCRIPTS", "ON"
+        | Some false -> yield "GENERATE-LOAD-SCRIPTS", "OFF"
         | None -> ()
         match options.Redirects with
-        | Some BindingRedirectsSettings.On -> yield "REDIRECTS: ON"
-        | Some BindingRedirectsSettings.Force -> yield "REDIRECTS: FORCE"
-        | Some BindingRedirectsSettings.Off -> yield "REDIRECTS: OFF"
+        | Some BindingRedirectsSettings.On -> yield "REDIRECTS", "ON"
+        | Some BindingRedirectsSettings.Force -> yield "REDIRECTS", "FORCE"
+        | Some BindingRedirectsSettings.Off -> yield "REDIRECTS", "OFF"
         | None -> ()
         match options.Settings.StorageConfig with
-        | Some (PackagesFolderGroupConfig.NoPackagesFolder) -> yield "STORAGE: NONE"
-        | Some (PackagesFolderGroupConfig.SymbolicLink) -> yield "STORAGE: SYMLINK"
-        | Some (PackagesFolderGroupConfig.DefaultPackagesFolder) -> yield "STORAGE: PACKAGES"
+        | Some (PackagesFolderGroupConfig.NoPackagesFolder) -> yield "STORAGE", "NONE"
+        | Some (PackagesFolderGroupConfig.SymbolicLink) -> yield "STORAGE", "SYMLINK"
+        | Some (PackagesFolderGroupConfig.DefaultPackagesFolder) -> yield "STORAGE", "PACKAGES"
         | Some (PackagesFolderGroupConfig.GivenPackagesFolder f) -> failwithf "Not implemented yet."
         | None -> ()
         match options.ResolverStrategyForTransitives with
-        | Some ResolverStrategy.Min -> yield "STRATEGY: MIN"
-        | Some ResolverStrategy.Max -> yield "STRATEGY: MAX"
+        | Some ResolverStrategy.Min -> yield "STRATEGY", "MIN"
+        | Some ResolverStrategy.Max -> yield "STRATEGY", "MAX"
         | None -> ()
         match options.ResolverStrategyForDirectDependencies with
-        | Some ResolverStrategy.Min -> yield "LOWEST_MATCHING: TRUE"
-        | Some ResolverStrategy.Max -> yield "LOWEST_MATCHING: FALSE"
+        | Some ResolverStrategy.Min -> yield "LOWEST_MATCHING", "TRUE"
+        | Some ResolverStrategy.Max -> yield "LOWEST_MATCHING", "FALSE"
         | None -> () 
         match options.Settings.CopyLocal with
-        | Some x -> yield "COPY-LOCAL: " + x.ToString().ToUpper()
+        | Some x -> yield "COPY-LOCAL", x.ToString().ToUpper()
         | None -> ()
         match options.Settings.SpecificVersion with
-        | Some x -> yield "SPECIFIC-VERSION: " + x.ToString().ToUpper()
+        | Some x -> yield "SPECIFIC-VERSION", x.ToString().ToUpper()
         | None -> ()
         match options.Settings.CopyContentToOutputDirectory with
-        | Some CopyToOutputDirectorySettings.Always -> yield "COPY-CONTENT-TO-OUTPUT-DIR: ALWAYS"
-        | Some CopyToOutputDirectorySettings.Never -> yield "COPY-CONTENT-TO-OUTPUT-DIR: NEVER"
-        | Some CopyToOutputDirectorySettings.PreserveNewest -> yield "COPY-CONTENT-TO-OUTPUT-DIR: PRESERVE-NEWEST"
+        | Some CopyToOutputDirectorySettings.Always -> yield "COPY-CONTENT-TO-OUTPUT-DIR", "ALWAYS"
+        | Some CopyToOutputDirectorySettings.Never -> yield "COPY-CONTENT-TO-OUTPUT-DIR", "NEVER"
+        | Some CopyToOutputDirectorySettings.PreserveNewest -> yield "COPY-CONTENT-TO-OUTPUT-DIR", "PRESERVE-NEWEST"
         | None -> ()
 
         match options.Settings.ImportTargets with
-        | Some x -> yield "IMPORT-TARGETS: " + x.ToString().ToUpper()
+        | Some x -> yield "IMPORT-TARGETS", x.ToString().ToUpper()
         | None -> ()
 
         match options.Settings.LicenseDownload with
-        | Some x -> yield "LICENSE-DOWNLOAD: " + x.ToString().ToUpper()
+        | Some x -> yield "LICENSE-DOWNLOAD", x.ToString().ToUpper()
         | None -> ()
 
         match options.Settings.OmitContent with
-        | Some ContentCopySettings.Omit -> yield "CONTENT: NONE"
-        | Some ContentCopySettings.Overwrite -> yield "CONTENT: TRUE"
-        | Some ContentCopySettings.OmitIfExisting -> yield "CONTENT: ONCE"
+        | Some ContentCopySettings.Omit -> yield "CONTENT", "NONE"
+        | Some ContentCopySettings.Overwrite -> yield "CONTENT", "TRUE"
+        | Some ContentCopySettings.OmitIfExisting -> yield "CONTENT", "ONCE"
         | None -> ()
 
         match options.Settings.ReferenceCondition with
-        | Some condition -> yield "CONDITION: " + condition.ToUpper()
+        | Some condition -> yield "CONDITION", condition.ToUpper()
         | None -> ()
 
         match options.Settings.FrameworkRestrictions |> getExplicitRestriction with
         | FrameworkRestriction.HasNoRestriction -> ()
-        | list  -> yield "RESTRICTION: " + list.ToString() ]
+        | list  -> yield "RESTRICTION", list.ToString()
+    ]
+    /// [omit]
+    let serializeOptionsAsLines options =
+        serializeOptions options
+        |> List.map(fun (x, y) -> x + ": " + y)
 
     /// [omit]
-    let serializePackages options (resolved : PackageResolution) = 
-        let sources =
-            resolved
+    let groupBySources (resolved : PackageResolution) =
+        resolved
             |> Seq.map (fun kv ->
                     let package = kv.Value
                     match package.Source with
@@ -106,6 +111,10 @@ module LockFileSerializer =
                     | LocalNuGet(path,_) -> path,AuthService.GetGlobalAuthenticationProvider path,package
                 )
             |> Seq.groupBy (fun (a,b,_) -> a)
+            
+    /// [omit]
+    let serializePackages options (resolved : PackageResolution) = 
+        let sources = groupBySources resolved
 
         let all = 
             let hasReported = ref false
@@ -250,6 +259,140 @@ module LockFileSerializer =
                         yield sprintf "      %O %s" name versionStr]
 
         String.Join(Environment.NewLine, all |> List.map (fun s -> s.TrimEnd()))
+
+module LockFileJsonSerializer =
+
+    /// [omit]
+    let serializeOptions options =
+        let j = JObject()
+        for (x, y) in LockFileSerializer.serializeOptions(options) do
+            j.Item(x) <- JValue(y)
+        j
+        
+    /// [omit]
+    let private jv (x : string) = JValue(x) :> JToken
+    
+    /// [omit]
+    let private ja (values : seq<list<string * JToken>>) =
+        values |> Seq.map Utils.jobjectFromSeq |> JArray
+
+    /// [omit]
+    let serializeSources (options : InstallOptions) (resolved : PackageResolution) : JArray =
+
+        let sources = LockFileSerializer.groupBySources resolved
+
+        let sources =
+              [ for (source), packages in sources do
+                  yield [
+                      yield "type", jv("NUGET")
+
+                      yield "remote", jv(String.quoted source)
+
+                      let packages =
+                          packages |> Seq.sortBy (fun (_,_,p) -> p.Name)
+                          |> Seq.map(fun (_,_,package) ->
+                            [ let settings =
+                                if package.Settings.FrameworkRestrictions = options.Settings.FrameworkRestrictions then
+                                    { package.Settings with FrameworkRestrictions = ExplicitRestriction FrameworkRestriction.NoRestriction }
+                                else
+                                    package.Settings
+
+                              yield! settings.ToList(options.Settings)
+                                |> List.map(fun (x, y) -> x.ToLower(), jv(y.ToLower()))
+                              
+                              yield "clitool", jv(
+                                match package.Kind with
+                                | ResolvedPackageKind.DotnetCliTool -> "true"
+                                | ResolvedPackageKind.Package -> "false")
+                              yield "isRuntimeDependency", jv(package.IsRuntimeDependency.ToString().ToLower())
+
+                              yield "packageName", jv(LockFileSerializer.writePackageName package.Name)
+                              yield "version", jv(package.Version.Normalize())
+
+                              yield
+                                "restrictions", ja(
+                                   package.Dependencies
+                                   |> Seq.map(fun (name,v,restrictions) ->
+                                    [
+                                        yield "packageName", jv(LockFileSerializer.writePackageName name)
+                                        yield "version", jv(v.ToString())
+                                          
+                                        let restrictions = filterRestrictions options.Settings.FrameworkRestrictions restrictions |> getExplicitRestriction
+                                        if not (FrameworkRestriction.NoRestriction = restrictions || restrictions = getExplicitRestriction options.Settings.FrameworkRestrictions) then
+                                            yield "restriction", jv(sprintf "%O" restrictions)
+                                    ] 
+                                   )) :> JToken
+                                        
+                            ])
+                          
+                      yield "packages", ja(packages) :> JToken
+                ]
+            ]
+
+        let sources =
+            sources
+            |> List.map jobjectFromSeq
+        sources |> JArray
+        
+    let serializeSourceFiles (files:ResolvedSourceFile list) =
+        [ for (owner,project,origin), files in files |> List.groupBy (fun f -> f.Owner, f.Project, f.Origin) do
+            let type', remote =
+                match origin with
+                | GitHubLink ->                    "GITHUB", sprintf "%s/%s" owner project
+                | GitLink (LocalGitOrigin  url)
+                | GitLink (RemoteGitOrigin url) -> "GIT", url
+                | GistLink ->                      "GIST", sprintf "%s/%s" owner project
+                | HttpLink url ->                  "HTTP", url
+
+            yield "type", jv(type')
+            yield "remote", jv(remote)
+            let files =
+                files |> Seq.sortBy (fun f -> f.Owner.ToLower(),f.Project.ToLower(),f.Name.ToLower())
+                |> Seq.map(fun file ->
+                    [
+                        yield "path", jv file.Name
+                        match String.IsNullOrEmpty(file.Commit) with
+                        | false ->
+                            yield "commit", jv file.Commit
+                        | true -> ()
+                        match file.AuthKey with
+                        | Some authKey ->
+                            yield "authKey", jv authKey
+                        | None -> ()
+
+                        match file.Command with
+                        | None -> ()
+                        | Some command -> yield "build", jv command
+
+                        match file.PackagePath with
+                        | None -> ()
+                        | Some path -> yield "path", jv path
+
+                        match file.OperatingSystemRestriction with
+                        | None -> ()
+                        | Some filter -> yield "os", jv filter
+
+                        let dependencies =
+                            file.Dependencies
+                            |> Seq.map(fun (name,v) ->
+                                [
+                                    let versionStr = 
+                                        let s = v.ToString()
+                                        if s = "" then s else "(" + s + ")"
+                                    yield "name", jv (LockFileSerializer.writePackageName name)
+                                    yield "version", jv versionStr
+                                ])
+                        yield "dependencies", ja(dependencies) :> JToken
+                    ])
+            yield "files", ja(files) :> JToken ]
+        |> Utils.jobjectFromSeq
+
+    let serializeGroup group =
+        [ "options", serializeOptions group.Options :> JToken
+          "sources", serializeSources group.Options group.Resolution :> JToken
+          "sourceFiles", serializeSourceFiles group.RemoteFiles :> JToken
+        ]
+        |> Utils.jobjectFromSeq
 
 module LockFileParser =
     type ParseState = { 
@@ -808,7 +951,17 @@ type LockFile (fileName:string, groups: Map<GroupName,LockFileGroup>) =
                         yield LockFileSerializer.serializePackages g.Value.Options g.Value.Resolution
                         yield LockFileSerializer.serializeSourceFiles g.Value.RemoteFiles
             |])
-
+        
+    member __.ToJson() : JObject =
+        let j = JObject()
+        
+        let groupsJ = JObject()
+        for g in groups do 
+            groupsJ.Item(g.Value.Name.ToString()) <- LockFileJsonSerializer.serializeGroup g.Value
+        
+        j.Item("groups") <- groupsJ
+        
+        j
 
     /// Updates the paket.lock file with the analyzed dependencies from the paket.dependencies file.
     member this.Save() =

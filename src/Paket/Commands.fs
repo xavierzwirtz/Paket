@@ -473,6 +473,20 @@ with
             | Max_Results(_) -> "limit maximum number of results"
             | Max_Results_Legacy(_) -> "[obsolete]"
 
+type ResolvePackageUrlArgs =
+    | [<ExactlyOnce;MainCommand>] NuGet of package_ID:string
+    | [<Mandatory; Unique>] Version of version:string
+    | Source of source_URL:string
+    | [<Unique>] Force
+with
+    interface IArgParserTemplate with
+        member this.Usage =
+            match this with
+            | NuGet(_) -> "NuGet package ID"
+            | Version(_) -> "NuGet package version"
+            | Source(_) -> "specify source URL"
+            | Force -> "ignore cache and force recheck of api"
+
 type InfoArgs =
     | [<Unique>] Paket_Dependencies_Dir
 with
@@ -480,7 +494,23 @@ with
         member this.Usage =
             match this with
             | Paket_Dependencies_Dir -> "absolute path of paket.dependencies directory, if exists"
-
+            
+type CatLockArgs =
+    | Json
+with
+    interface IArgParserTemplate with
+        member this.Usage =
+            match this with
+            | Json(_) -> "output in json format"
+            
+and CatArgs =
+    | [<CliPrefix(CliPrefix.None)>] Lock of ParseResults<CatLockArgs>
+with
+    interface IArgParserTemplate with
+        member this.Usage =
+            match this with
+            | Lock(_) -> "contents of lock file"
+            
 type InterprojectReferencesConstraintArgs =
     | Min
     | Fix
@@ -699,6 +729,7 @@ type Command =
     | [<CustomCommandLine("why")>]                      Why of ParseResults<WhyArgs>
     | [<CustomCommandLine("restriction")>]              Restriction of ParseResults<RestrictionArgs>
     | [<CustomCommandLine("info")>]                     Info of ParseResults<InfoArgs>
+    | [<CustomCommandLine("cat")>]                      Cat of ParseResults<CatArgs>
 with
     interface IArgParserTemplate with
         member this.Usage =
@@ -732,6 +763,7 @@ with
             | Why _ -> "determine why a dependency is required"
             | Restriction _ -> "resolve a framework restriction and show details"
             | Info _ -> "info"
+            | Cat _ -> "print contents of paket files" 
             | Log_File _ -> "print output to a file"
             | Silent -> "suppress console output"
             | Verbose -> "print detailed information to the console"

@@ -902,3 +902,9 @@ module Task =
 
     let Map<'TIn,'TOut> (mapper : 'TIn -> 'TOut) (t:Task<'TIn>) : Task<'TOut> =
         t.ContinueWith((fun (t:Task<'TIn>) -> mapper(t.Result)))
+        
+let jobjectFromSeq seq =
+    let j = Newtonsoft.Json.Linq.JObject()
+    for (k, v) in seq do
+        j.Item(k) <- v
+    j

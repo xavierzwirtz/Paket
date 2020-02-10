@@ -51,6 +51,12 @@ type Dependencies(dependenciesFileName: string) =
     member __.GetLockFile() =
         let lockFileName = DependenciesFile.FindLockfile dependenciesFileName
         LockFile.LoadFrom(lockFileName.FullName)
+        
+    /// Tries to locate the paket.lock file.
+    member __.TryGetLockFile() =
+        let lockFileName = DependenciesFile.FindLockfile dependenciesFileName
+        if lockFileName.Exists then Some(LockFile.LoadFrom(lockFileName.FullName))
+        else None
 
     /// Returns an instance of the paket.dependencies file.
     member __.GetDependenciesFile() = DependenciesFile.ReadFromFile dependenciesFileName

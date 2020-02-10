@@ -278,6 +278,192 @@ let ``should parse own lock file2``() =
 
     lockFile.SourceFiles.[0].Name |> shouldEqual "modules/Octokit/Octokit.fsx"
 
+[<Test>]
+let ``should jsonify own lock file2``() = 
+    let lockFile = LockFile.Parse("",toLines dogfood2)
+    let lockFileJson = lockFile.ToJson().ToString(Newtonsoft.Json.Formatting.Indented)
+
+    normalizeLineEndings lockFileJson 
+    |> shouldEqual (normalizeLineEndings """{
+  "groups": {
+    "Main": {
+      "options": {},
+      "sources": [
+        {
+          "type": "NUGET",
+          "remote": "https://www.nuget.org/api/v2",
+          "packages": [
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "DotNetZip",
+              "version": "1.9.3",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "FAKE",
+              "version": "3.5.5",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "FSharp.Compiler.Service",
+              "version": "0.0.62",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "FSharp.Formatting",
+              "version": "2.4.25",
+              "restrictions": [
+                {
+                  "packageName": "FSharp.Compiler.Service",
+                  "version": ">= 0.0.59"
+                },
+                {
+                  "packageName": "Microsoft.AspNet.Razor",
+                  "version": "2.0.30506"
+                },
+                {
+                  "packageName": "RazorEngine",
+                  "version": "3.3"
+                }
+              ]
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "Microsoft.AspNet.Razor",
+              "version": "2.0.30506",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "Microsoft.Bcl",
+              "version": "1.1.9",
+              "restrictions": [
+                {
+                  "packageName": "Microsoft.Bcl.Build",
+                  "version": ">= 1.0.14"
+                }
+              ]
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "Microsoft.Bcl.Build",
+              "version": "1.0.21",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "Microsoft.Net.Http",
+              "version": "2.2.28",
+              "restrictions": [
+                {
+                  "packageName": "Microsoft.Bcl",
+                  "version": ">= 1.1.9"
+                },
+                {
+                  "packageName": "Microsoft.Bcl.Build",
+                  "version": ">= 1.0.14"
+                }
+              ]
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "Newtonsoft.Json",
+              "version": "6.0.5",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "NuGet.CommandLine",
+              "version": "2.8.2",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "NUnit",
+              "version": "2.6.3",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "NUnit.Runners",
+              "version": "2.6.3",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "Octokit",
+              "version": "0.4.1",
+              "restrictions": [
+                {
+                  "packageName": "Microsoft.Net.Http",
+                  "version": ""
+                }
+              ]
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "RazorEngine",
+              "version": "3.3.0",
+              "restrictions": [
+                {
+                  "packageName": "Microsoft.AspNet.Razor",
+                  "version": ">= 2.0.30506"
+                }
+              ]
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "SourceLink.Fake",
+              "version": "0.3.4",
+              "restrictions": []
+            },
+            {
+              "clitool": "false",
+              "isRuntimeDependency": "false",
+              "packageName": "UnionArgParser",
+              "version": "0.8.0",
+              "restrictions": []
+            }
+          ]
+        }
+      ],
+      "sourceFiles": {
+        "type": "GITHUB",
+        "remote": "fsharp/FAKE",
+        "files": [
+          {
+            "path": "modules/Octokit/Octokit.fsx",
+            "commit": "a25c2f256a99242c1106b5a3478aae6bb68c7a93",
+            "dependencies": [
+              {
+                "name": "Octokit",
+                "version": ""
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}""")
 
 let frameworkRestricted = """NUGET
   remote: https://www.nuget.org/api/v2

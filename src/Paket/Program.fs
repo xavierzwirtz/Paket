@@ -770,6 +770,24 @@ let info (results : ParseResults<InfoArgs>) =
         | None -> ()
         | Some deps -> tracefn "%s" deps.RootPath
 
+let cat (results : ParseResults<CatArgs>) =
+    match results.GetSubCommand() with
+    | CatArgs.Lock r ->
+        match Dependencies.TryLocate() with
+        | None ->
+            failwithf "Could not find '%s' at or above current directory."
+                Constants.DependenciesFileName
+        | Some deps ->
+            match deps.TryGetLockFile() with
+            | None ->
+                failwithf "Could not find '%s'"
+                    Constants.LockFileName
+            | Some(lock) ->
+                tracefn "%s"
+                    (if r.Contains<@ Json @> then
+                        lock.ToJson().ToString(Newtonsoft.Json.Formatting.Indented)
+                     else lock.ToString())
+                
 let generateNuspec (results:ParseResults<GenerateNuspecArgs>) =
     let projectFile = results.GetResult <@ GenerateNuspecArgs.Project @>
     let dependenciesPath = results.GetResult <@ GenerateNuspecArgs.DependenciesFile @>
@@ -860,6 +878,7 @@ let handleCommand silent command =
     | Why r -> processCommand silent why r
     | Restriction r -> processCommand silent restriction r
     | Info r -> processCommand silent info r
+    | Cat r -> processCommand silent cat r
     // global options; list here in order to maintain compiler warnings
     // in case of new subcommands added
     | Verbose

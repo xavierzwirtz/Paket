@@ -75,7 +75,7 @@ let prepare scenario =
     try
         let originalScenarioPath = originalScenarioPath scenario
         let scenarioPath = createScenarioDir scenario
-        CopyDir scenarioPath originalScenarioPath (fun _ -> true)
+        if scenario <> "empty" then CopyDir scenarioPath originalScenarioPath (fun _ -> true)
 
         for ext in ["fsproj";"csproj";"vcxproj";"template";"json"] do
             for file in Directory.GetFiles(scenarioPath, (sprintf "*.%stemplate" ext), SearchOption.AllDirectories) do

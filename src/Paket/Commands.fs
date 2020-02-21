@@ -717,6 +717,7 @@ type Command =
     | [<CustomCommandLine("update")>]                   Update of ParseResults<UpdateArgs>
     | [<CustomCommandLine("find-packages")>]            FindPackages of ParseResults<FindPackagesArgs>
     | [<CustomCommandLine("find-package-versions")>]    FindPackageVersions of ParseResults<FindPackageVersionsArgs>
+    | [<CustomCommandLine("resolve-package-url")>]      ResolvePackageUrl of ParseResults<ResolvePackageUrlArgs>
     | [<Hidden;CustomCommandLine("fix-nuspec")>]        FixNuspec of ParseResults<FixNuspecArgs>
     | [<CustomCommandLine("fix-nuspecs")>]              FixNuspecs of ParseResults<FixNuspecsArgs>
     | [<CustomCommandLine("generate-nuspec")>]          GenerateNuspec of ParseResults<GenerateNuspecArgs>
@@ -751,6 +752,7 @@ with
             | Update _ -> "update dependencies to their latest version"
             | FindPackages _ -> "search for NuGet packages"
             | FindPackageVersions _ -> "search for dependency versions"
+            | ResolvePackageUrl _ -> "resolve the download url for a NuGet package"
             | FixNuspec _ -> "[obsolete]"
             | FixNuspecs _ -> "patch a list of .nuspec files to correct transitive dependencies"
             | GenerateNuspec _ -> "generate a default nuspec for a project including its direct dependencies"

@@ -10,6 +10,7 @@ open Paket.Commands
 
 open Argu
 open PackageSources
+open Paket
 
 let sw = Stopwatch.StartNew()
 
@@ -578,16 +579,17 @@ let pack (results : ParseResults<_>) =
                       ?projectUrl = projectUrl)
 
 /// This is source-discovering logic shared between `findPackages` and `findPackageVersions`
-let discoverPackageSources explicitSource (dependencies: Dependencies option) =
-    match explicitSource, dependencies with
-    | Some source, _ ->
-        [PackageSource.NuGetV2Source source]
-    | _, Some dependencies ->
+let discoverPackageSources explicitSources (dependencies: Dependencies option) commandExample =
+    match explicitSources, dependencies with
+    | [], Some dependencies ->
         PackageSources.DefaultNuGetSource ::
         (dependencies.GetSources() |> Seq.map (fun kv -> kv.Value) |> List.concat)
-    | _ ->
-        failwithf "Could not find '%s' at or above current directory, and no explicit source was given as parameter (e.g. 'paket.exe find-packages --source https://www.nuget.org/api/v2')."
-            Constants.DependenciesFileName
+    | [], None ->
+        failwithf "Could not find '%s' at or above current directory, and no explicit source was given as parameter (e.g. '%s')."
+            Constants.DependenciesFileName commandExample
+    | sources, _ ->
+        sources
+        |> List.map (fun source -> PackageSource.Parse(source, AuthProvider.empty))
 
 let findPackages silent (results : ParseResults<_>) =
     let maxResults =
@@ -600,7 +602,8 @@ let findPackages silent (results : ParseResults<_>) =
         let arg = (results.TryGetResult <@ FindPackagesArgs.Source @>,
                    results.TryGetResult <@ FindPackagesArgs.Source_Legacy @>)
                   |> legacyOption results (ReplaceArgument("--source", "source"))
-        discoverPackageSources arg dependencies
+                  |> Option.toList
+        discoverPackageSources arg dependencies "paket.exe find-packages --source https://www.nuget.org/api/v2"
 
     let searchAndPrint searchText =
         for p in Dependencies.FindPackagesByName(sources,searchText,maxResults) do
@@ -692,6 +695,14 @@ let showGroups (results : ParseResults<ShowGroupsArgs>) =
     for groupName in dependenciesFile.GetGroups() do
         tracefn "%s" groupName
 
+let getRoot (dependencies : Dependencies option) =
+    match dependencies with
+    | Some d ->
+        d.RootPath
+    | None ->
+        traceWarnfn "Could not find '%s' at or above current directory. Using current directory as project root." Constants.DependenciesFileName
+        Directory.GetCurrentDirectory()
+        
 let findPackageVersions (results : ParseResults<_>) =
     let maxResults =
         let arg = (results.TryGetResult <@ FindPackageVersionsArgs.Max_Results @>,
@@ -708,19 +719,33 @@ let findPackageVersions (results : ParseResults<_>) =
         let arg = (results.TryGetResult <@ FindPackageVersionsArgs.Source @>,
                    results.TryGetResult <@ FindPackageVersionsArgs.Source_Legacy @>)
                   |> legacyOption results (ReplaceArgument("--source", "source"))
-        discoverPackageSources arg dependencies
+                  |> Option.toList
 
-    let root =
-        match dependencies with
-        | Some d ->
-            d.RootPath
-        | None ->
-            traceWarnfn "Could not find '%s' at or above current directory. Using current directory as project root." Constants.DependenciesFileName
-            Directory.GetCurrentDirectory()
+        discoverPackageSources arg dependencies "paket.exe find-package-versions --source https://www.nuget.org/api/v2"
+
+    let root = getRoot dependencies
 
     for p in Dependencies.FindPackageVersions(root,sources,name,maxResults) do
         tracefn "%s" p
 
+let resolvePackageUrl (results : ParseResults<ResolvePackageUrlArgs>) =
+    let dependencies = Dependencies.TryLocate()
+    let root = getRoot dependencies
+    
+    let packageName = results.GetResult <@ ResolvePackageUrlArgs.NuGet @> |> Domain.PackageName
+    let version = results.GetResult <@ ResolvePackageUrlArgs.Version @> |> SemVer.Parse
+    let force = results.Contains <@ ResolvePackageUrlArgs.Force @>
+    
+    let sources =
+        let arg = results.GetResults <@ ResolvePackageUrlArgs.Source @>
+        discoverPackageSources arg dependencies "paket.exe resolve-package-url HelloWorld --version 1.2.3  --source https://www.nuget.org/api/v2"
+                
+    let nugetPackage =
+        NuGet.GetPackageDetails None root force (PackageResolver.GetPackageDetailsParameters.ofParams sources Constants.MainDependencyGroup packageName version)
+        |> Async.RunSynchronously
+    
+    printfn "%s" nugetPackage.DownloadLink
+    
 let push paketVersion (results : ParseResults<_>) =
     let fileName =
         let arg = (results.TryGetResult <@ PushArgs.Package @>,
@@ -862,6 +887,7 @@ let handleCommand silent command =
     | Update r -> processCommand silent update r
     | FindPackages r -> processCommand silent (findPackages silent) r
     | FindPackageVersions r -> processCommand silent findPackageVersions r
+    | ResolvePackageUrl r -> processCommand silent resolvePackageUrl r
     | FixNuspec r ->
         warnObsolete (ReplaceArgument("fix-nuspecs", "fix-nuspec"))
         processCommand silent (fixNuspec silent) r
